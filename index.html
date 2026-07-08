@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Note Pad Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #10B981;       
+            --primary-hover: #059669;
+            --primary-glow: rgba(16, 185, 129, 0.15);
+            --secondary: #EF4444;     
+            --secondary-hover: #dc2626;
+            --blue-btn: #2563EB;      
+            --blue-btn-hover: #1d4ed8;
+            --bg-body: #f4f6f9;       
+            --bg-card: #FFFFFF;
+            --text-main: #0f172a;     
+            --text-muted: #64748b;    
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --radius: 14px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 12px 32px rgba(0,0,0,0.08);
+            --shadow-xl: 0 25px 50px -12px rgba(0,0,0,0.15);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            margin: 0; 
+            background-color: var(--bg-body); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            color: var(--text-main);
+        }
+
+        .container { 
+            width: 100%; 
+            height: 100vh; 
+            max-width: 100%; 
+            background-color: var(--bg-body); 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+
+        /* ==============================
+           অটোমেটিক আপডেট পপআপ মডাল CSS
+           ============================== */
+        #update-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+        }
+        .update-modal {
+            background: var(--bg-card);
+            padding: 26px 22px;
+            border-radius: 24px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: var(--shadow-xl);
+            animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes modalSlideIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .update-icon {
+            width: 56px; height: 56px;
+            background: var(--primary-glow);
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; margin: 0 auto 16px;
+        }
+        .update-title {
+            font-size: 1.2em; font-weight: 800; color: var(--text-main); margin-bottom: 8px;
+        }
+        .update-msg {
+            font-size: 0.9em; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5;
+        }
+        .update-btn {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white; border: none;
+            padding: 14px; border-radius: 14px;
+            font-size: 0.95em; font-weight: 700; cursor: pointer;
+            width: 100%; transition: all 0.2s;
+            box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.4);
+            font-family: 'Outfit', sans-serif;
+        }
+        .update-btn:active { transform: scale(0.97); }
+
+        /* ==============================
+           অথ ওভারলে
+           ============================== */
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(160deg, #022c22 0%, #064e3b 30%, #0f766e 60%, #134e4a 100%);
+            z-index: 5000; display: flex;
+            justify-content: center; align-items: center; padding: 20px;
+            overflow: hidden;
+        }
+
+        .auth-overlay::before {
+            content: '';
+            position: absolute;
+            width: 280px; height: 280px;
+            background: radial-gradient(circle, rgba(52, 211, 153, 0.15) 0%, transparent 70%);
+            top: -80px; right: -60px;
+            border-radius: 50%;
+            animation: authOrb1 12s ease-in-out infinite alternate;
+        }
+
+        .auth-overlay::after {
+            content: '';
+            position: absolute;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
+            bottom: -40px; left: -40px;
+            border-radius: 50%;
+            animation: authOrb2 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes authOrb1 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-30px, 40px) scale(1.2); }
+        }
+
+        @keyframes authOrb2 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(20px, -30px) scale(1.15); }
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            width: 100%; max-width: 340px; padding: 32px 26px;
+            border-radius: 28px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.2);
+            text-align: center;
+            position: relative; z-index: 1;
+            animation: authCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes authCardIn {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .auth-card h2 {
+            margin-bottom: 6px; font-weight: 800;
+            color: #065F46; font-size: 1.4em; letter-spacing: -0.3px;
+        }
+
+        .auth-card p {
+            font-size: 0.88em; color: var(--text-muted);
+            margin-bottom: 26px; line-height: 1.5;
+        }
+
+        .auth-input {
+            width: 100%; padding: 15px 16px; margin-bottom: 12px;
+            border: 2px solid var(--border); border-radius: 14px;
+            font-size: 1em; font-family: 'Outfit', sans-serif;
+            background: #f8fafc; transition: all 0.25s; color: var(--text-main);
+        }
+
+        .auth-input:focus {
+            border-color: var(--primary); background: white;
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        .auth-input::placeholder { color: #94a3b8; }
+
+        .auth-btn {
+            width: 100%; padding: 15px; border: none; border-radius: 14px;
+            font-size: 1em; font-weight: 700; color: white;
+            background: linear-gradient(135deg, #059669, #10b981);
+            cursor: pointer; margin-top: 10px;
+            box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.4);
+            transition: all 0.25s; font-family: 'Outfit', sans-serif;
+        }
+
+        .auth-btn:hover { box-shadow: 0 8px 28px -4px rgba(16, 185, 129, 0.5); transform: translateY(-1px); }
+        .auth-btn:active { transform: scale(0.98); }
+
+        .auth-link {
+            margin-top: 18px; font-size: 0.9em; color: var(--blue-btn);
+            cursor: pointer; display: inline-block; font-weight: 600;
+        }
+
+        .auth-link:active { opacity: 0.7; }
+
+        .status-box {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e; font-weight: 700; padding: 14px;
+            border-radius: 14px; margin: 16px 0; font-size: 0.92em;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        
+        /* ==============================
+           হেডার
+           ============================== */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; background: white;
+            border-bottom: 1px solid var(--border-light);
+            z-index: 60; flex-shrink: 0; box-shadow: var(--shadow-sm);
+        }
+
+        .header-spacer { width: 32px; } 
+
+        .date-selector {
+            font-weight: 700; font-size: 1.05em; color: var(--text-main);
+            cursor: pointer; padding: 8px 22px; border-radius: 30px;
+            transition: all 0.25s;
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+        }
+
+        .date-selector:hover {
+            background: var(--primary); color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+        }
+        
+        .menu-dot-btn {
+            background: none; border: none; color: var(--text-main);
+            cursor: pointer; padding: 6px 10px; border-radius: 12px;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .menu-dot-btn svg { width: 24px; height: 24px; }
+        .menu-dot-btn:active { background-color: #f1f5f9; transform: scale(0.9); }
+
+        /* ==============================
+           প্রোফাইল বক্স
+           ============================== */
+        .profile-box {
+            background: white; padding: 30px 26px;
+            border-radius: 28px; text-align: center;
+            width: 85%; max-width: 320px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.4);
+            transform: scale(0.8);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative; overflow: hidden;
+        }
+
+        .profile-box::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #60a5fa, var(--primary));
+        }
+
+        .zoom-overlay.active .profile-box { transform: scale(1); }
+
+        .profile-box h3 {
+            margin: 0 0 22px 0; font-size: 1.25em; font-weight: 800;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--border-light);
+            padding-bottom: 12px; letter-spacing: -0.2px;
+        }
+
+        .profile-detail-item {
+            display: flex; flex-direction: column; align-items: flex-start;
+            margin-bottom: 14px; width: 100%;
+        }
+
+        .profile-detail-item span.lbl {
+            font-size: 0.72em; color: var(--text-muted);
+            font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 6px;
+        }
+
+        .profile-detail-item div.val {
+            font-size: 1.02em; font-weight: 600; color: var(--text-main);
+            background: #f8fafc; width: 100%; padding: 12px 16px;
+            border-radius: 12px; border: 1px solid var(--border);
+            text-align: left; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+
+        .btn-logout {
+            width: 100%; padding: 14px; border: none; border-radius: 14px;
+            font-size: 0.95em; font-weight: 700; color: white;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            cursor: pointer; margin-top: 18px;
+            box-shadow: 0 6px 20px -4px rgba(239, 68, 68, 0.35);
+            transition: all 0.25s; font-family: 'Outfit', sans-serif;
+        }
+
+        .btn-logout:active { transform: scale(0.97); }
+
+        /* ========== অ্যাডমিন অ্যাপ বাটন ========== */
+        .btn-admin-app {
+            width: 100%; padding: 14px; border: none; border-radius: 14px;
+            font-size: 0.95em; font-weight: 700; color: white;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            cursor: pointer; margin-top: 10px;
+            box-shadow: 0 6px 20px -4px rgba(15, 23, 42, 0.4);
+            transition: all 0.25s; font-family: 'Outfit', sans-serif;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            position: relative; overflow: hidden;
+        }
+
+        .btn-admin-app::after {
+            content: '';
+            position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.15), transparent);
+            animation: adminBtnShine 3s ease-in-out infinite;
+        }
+
+        @keyframes adminBtnShine {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        .btn-admin-app:hover {
+            box-shadow: 0 8px 28px -4px rgba(15, 23, 42, 0.55);
+            transform: translateY(-1px);
+            background: linear-gradient(135deg, #1e293b, #334155);
+        }
+
+        .btn-admin-app:active { transform: scale(0.97); }
+
+        .btn-admin-app svg {
+            width: 18px; height: 18px; flex-shrink: 0;
+        }
+
+        /* ==============================
+           মান্থ ড্রপডাউন
+           ============================== */
+        .month-dropdown {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            background: white; border-radius: 24px;
+            box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
+            z-index: 200; width: 90%; max-width: 340px; padding: 24px;
+            display: none; opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .month-dropdown.active {
+            display: block; opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .month-dropdown-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+
+        .month-option {
+            padding: 14px 5px; cursor: pointer; color: var(--text-main);
+            border-radius: 14px; text-align: center; font-size: 0.9em;
+            font-weight: 700; transition: all 0.2s;
+            background: #f8fafc; border: 2px solid transparent;
+        }
+
+        .month-option:hover { background: #f1f5f9; border-color: var(--border); }
+        .month-option:active { transform: scale(0.95); }
+
+        .month-option.selected {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white; border-color: transparent;
+            box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* ==============================
+           ট্রানজেকশন টেবিল
+           ============================== */
+        .transaction-list {
+            flex-grow: 1; overflow-y: auto; overflow-x: hidden;
+            padding: 0; background-color: var(--bg-body);
+        }
+
+        .transaction-table {
+            width: 100%; border-collapse: separate;
+            border-spacing: 0; table-layout: fixed;
+        }
+
+        .transaction-table thead {
+            position: sticky; top: 0;
+            background: linear-gradient(135deg, #1e3a5f, #1e40af);
+            z-index: 50; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+        }
+
+        .transaction-table th {
+            font-size: 0.72em; font-weight: 800;
+            color: #FFFFFF !important; text-transform: uppercase;
+            letter-spacing: 0.8px; padding: 11px 2px;
+            border: 1px solid rgba(255,255,255,0.08); vertical-align: middle;
+        }
+
+        .transaction-table td {
+            background-color: white; padding: 12px 2px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-main); transition: background 0.15s;
+            vertical-align: middle; line-height: 1.2;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .transaction-table tbody tr { cursor: pointer; transition: all 0.15s; }
+        .transaction-table tbody tr:hover { background-color: #f8fafc; }
+        .transaction-table tbody tr:active { background-color: #f1f5f9; }
+        
+        .transaction-table .date-col { width: 18%; text-align: center; }
+        .transaction-table .desc-col { width: 22%; text-align: left; padding-left: 8px; }
+        .transaction-table .amount-col { width: 20%; text-align: center; }
+        .transaction-table .balance-col { width: 22%; text-align: center; }
+        .transaction-table .action-col { width: 18%; text-align: center; }
+        
+        .transaction-table td.date-col { font-weight: 700; color: #475569; font-size: 0.82em; }
+        .transaction-table td.desc-col { font-weight: 600; color: #64748b; font-size: 0.82em; }
+        .transaction-table td.amount-col { font-weight: 800; font-size: 0.92em; }
+        .transaction-table td.balance-col { color: #475569; font-size: 0.82em; font-weight: 600; }
+        .transaction-table td.action-col { font-size: 0.75em; font-weight: 800; color: var(--blue-btn); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .transaction-table .cash-in { color: #059669; }
+        .transaction-table .cash-out { color: #dc2626; }
+        .excluded-item { opacity: 0.55; background-color: #fef2f2 !important; }
+        
+        /* ==============================
+           সামারি টেবিল
+           ============================== */
+        .summary-table {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            padding: 10px 10px 8px 10px; gap: 8px;
+            flex-shrink: 0; background-color: white;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .summary-card {
+            background: #f8fafc; padding: 14px 4px; border-radius: var(--radius);
+            text-align: center; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.25s;
+            border: 2px solid transparent;
+            position: relative; overflow: hidden; min-width: 0;
+        }
+
+        .summary-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; border-radius: 0 0 4px 4px; opacity: 0.7;
+        }
+
+        .total-cash-in::before { background: var(--primary); }
+        .total-cash-out::before { background: var(--secondary); }
+        .balance-total::before { background: var(--text-main); }
+
+        .summary-card:active { transform: scale(0.95); background-color: #f1f5f9; }
+
+        .summary-card span.label {
+            font-size: 0.7em; color: var(--text-muted);
+            text-transform: uppercase; font-weight: 700;
+            letter-spacing: 0.8px; margin-bottom: 6px;
+        }
+
+        .summary-card span.value {
+            font-size: 0.95em; font-weight: 800; width: 100%;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .total-cash-in .value { color: #059669; }
+        .total-cash-out .value { color: #dc2626; }
+        .balance-total .value { color: var(--text-main); }
+        
+        /* ==============================
+           জুম ওভারলে
+           ============================== */
+        .zoom-overlay {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(5, 10, 21, 0.88);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            z-index: 2000; display: none;
+            justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+
+        .zoom-overlay.active { display: flex; opacity: 1; }
+
+        .zoom-box {
+            background: white; padding: 44px 32px; border-radius: 28px;
+            text-align: center; width: 85%; max-width: 320px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.5);
+            transform: scale(0.8);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative; overflow: hidden;
+        }
+
+        .zoom-box::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; background: linear-gradient(90deg, var(--primary), #60a5fa);
+        }
+
+        .zoom-overlay.active .zoom-box { transform: scale(1); }
+
+        .zoom-box .zoom-title {
+            font-size: 1em; text-transform: uppercase; color: var(--text-muted);
+            font-weight: 700; letter-spacing: 1.5px; margin-bottom: 14px;
+        }
+
+        .zoom-box .zoom-value {
+            font-size: 2.4em; font-weight: 800; color: var(--text-main);
+            word-break: break-all; letter-spacing: -0.5px;
+        }
+        
+        /* ==============================
+           অ্যাকশন বাটন
+           ============================== */
+        .action-buttons {
+            display: flex; justify-content: space-between;
+            padding: 12px 16px 22px 16px; gap: 10px;
+            flex-shrink: 0; background-color: white;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+        }
+
+        .action-buttons button {
+            flex: 1; padding: 14px 5px; border: none; border-radius: 14px;
+            font-size: 0.9em; font-weight: 700; color: white;
+            cursor: pointer; transition: all 0.25s; font-family: 'Outfit', sans-serif;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+        }
+
+        .action-buttons button:first-child {
+            background: linear-gradient(135deg, #059669, #10b981);
+            box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.4);
+        }
+        .action-buttons button:first-child:hover {
+            box-shadow: 0 8px 28px -4px rgba(16, 185, 129, 0.5); transform: translateY(-1px);
+        }
+
+        .action-buttons button:last-child {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            box-shadow: 0 6px 20px -4px rgba(239, 68, 68, 0.35);
+        }
+        .action-buttons button:last-child:hover {
+            box-shadow: 0 8px 28px -4px rgba(239, 68, 68, 0.45); transform: translateY(-1px);
+        }
+
+        .action-buttons button:active { transform: scale(0.96) !important; }
+        
+        /* ==============================
+           মোডাল
+           ============================== */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(5, 10, 21, 0.55);
+            z-index: 1000; justify-content: center; align-items: flex-end;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+
+        .modal-content {
+            background-color: white; padding: 24px 20px 28px 20px;
+            width: 100%; max-width: 500px; max-height: 90vh;
+            overflow-y: auto; overflow-x: hidden;
+            border-top-left-radius: 28px; border-top-right-radius: 28px;
+            box-shadow: 0 -20px 50px -15px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .modal-content::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; background: linear-gradient(90deg, var(--primary), #60a5fa, var(--secondary));
+        }
+
+        @media (min-width: 600px) {
+            .modal { align-items: center; }
+            .modal-content { border-radius: 28px; width: 90%; animation: fadeIn 0.3s ease; box-shadow: var(--shadow-xl); }
+        }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+
+        .modal-title { font-size: 1.35em; font-weight: 800; color: var(--text-main); letter-spacing: -0.3px; }
+
+        .close-btn {
+            font-size: 1.8em; cursor: pointer; color: var(--text-muted); line-height: 1;
+            width: 40px; height: 40px; display: flex; align-items: center;
+            justify-content: center; border-radius: 12px; transition: all 0.2s;
+        }
+
+        .close-btn:active { background: #f1f5f9; transform: scale(0.9); }
+
+        .form-group { margin-bottom: 20px; }
+
+        .form-group label {
+            display: block; margin-bottom: 8px; font-weight: 700;
+            color: var(--text-muted); font-size: 0.82em;
+            text-transform: uppercase; letter-spacing: 0.8px;
+        }
+
+        .form-group input {
+            width: 100%; padding: 13px 16px;
+            border: 2px solid var(--border); border-radius: 14px;
+            font-size: 1em; background-color: #f8fafc;
+            font-family: 'Outfit', sans-serif; color: var(--text-main);
+            transition: all 0.25s; max-width: 100%;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary); background-color: white;
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        .form-group input::placeholder { color: #94a3b8; }
+        
+        .modal-buttons {
+            display: flex; gap: 8px; margin-top: 24px;
+            justify-content: center; align-items: center; width: 100%;
+        }
+
+        .modal-buttons button {
+            flex: 1; padding: 14px 5px; border: none; border-radius: 12px;
+            cursor: pointer; font-weight: 700; font-size: 0.88em;
+            text-align: center; color: white; transition: all 0.25s;
+            font-family: 'Outfit', sans-serif; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .modal-buttons button:active { transform: scale(0.97); }
+
+        .btn-cancel { background: linear-gradient(135deg, #1d4ed8, #2563eb); box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.35); }
+        .btn-delete { background: linear-gradient(135deg, #dc2626, #ef4444); box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.35); }
+        .btn-submit { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.35); }
+        
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.35); z-index: 150; display: none;
+        }
+
+        .notification {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            padding: 13px 28px;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white; border-radius: 30px; font-size: 0.88em; font-weight: 600;
+            opacity: 0; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 6000; pointer-events: none;
+            box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05);
+        }
+
+        .notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        #emptyState { text-align: center; padding: 50px 20px; color: var(--text-muted); display: none; }
+        #emptyState svg { width: 64px; height: 64px; margin-bottom: 16px; color: #cbd5e1; }
+
+        .transaction-list::-webkit-scrollbar { width: 3px; }
+        .transaction-list::-webkit-scrollbar-track { background: transparent; }
+        .transaction-list::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 10px; }
+        ::selection { background: rgba(16, 185, 129, 0.2); }
+    </style>
+</head>
+<body>
+
+    <div id="update-modal-overlay">
+        <div class="update-modal">
+            <div class="update-icon">✨</div>
+            <div class="update-title">New Update Available!</div>
+            <div class="update-msg">A new version of Note Pad Pro is available. Click below to upgrade and clear cache.</div>
+            <button class="update-btn" id="updateNowBtn">Update Now</button>
+        </div>
+    </div>
+
+    <div id="authLayer" class="auth-overlay">
+        <div id="loginScreen" class="auth-card">
+            <h2>Welcome to Notepad Pro</h2>
+            <p>Enter your password</p>
+            <input type="password" id="loginPin" class="auth-input" placeholder="write your password" maxlength="4" inputmode="numeric">
+            <button id="loginBtn" class="auth-btn">Login now!</button>
+            <div id="goToRegister" class="auth-link">Create new account</div>
+        </div>
+
+        <div id="registerScreen" class="auth-card" style="display: none;">
+            <h2>Welcome to notepad pro</h2>
+            <p>Registration from</p>
+            <input type="text" id="regName" class="auth-input" placeholder="User Name">
+            <input type="tel" id="regMobile" class="auth-input" placeholder="Mobile Number">
+            <input type="password" id="regPin" class="auth-input" placeholder="New Password" maxlength="4" inputmode="numeric">
+            <input type="password" id="regConfirmPin" class="auth-input" placeholder="Confirm Password" maxlength="4" inputmode="numeric">
+            <button id="registerBtn" class="auth-btn">Sign in!</button>
+            <div id="goToLogin" class="auth-link">Back to Login</div>
+        </div>
+
+        <div id="pendingScreen" class="auth-card" style="display: none;">
+            <h2>Approval Pending</h2>
+            <p>Your registry has been create successfuly</p>
+            <div class="status-box">Please waiting for Approval</div>
+            <p style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">please wait a moment your account will be started very soon.</p>
+            <button id="checkStatusBtn" class="auth-btn" style="background: linear-gradient(135deg, #1d4ed8, #2563eb); box-shadow: 0 6px 20px -4px rgba(37, 99, 235, 0.4);">Refresh</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-spacer"></div> 
+            <div class="date-selector" id="dateSelector">
+                <span id="selectedMonth">January</span>
+            </div>
+            <button class="menu-dot-btn" id="menuDotBtn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+            </button>
+        </div>
+        
+        <div class="transaction-list" id="transactionList">
+            <table class="transaction-table">
+                <thead>
+                    <tr>
+                        <th class="date-col">Date</th>
+                        <th class="desc-col">Note</th>
+                        <th class="amount-col">Order</th> 
+                        <th class="balance-col">Pending</th>
+                        <th class="action-col">Edit</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionTableBody"></tbody>
+            </table>
+            
+            <div id="emptyState">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <p>You have no order history</p>
+            </div>
+        </div>
+
+        <div class="summary-table">
+            <div class="summary-card total-cash-in" id="cardTotal">
+                <span class="label">Total</span>
+                <span class="value" id="totalCashIn">0</span>
+            </div>
+            <div class="summary-card total-cash-out" id="cardTarget">
+                <span class="label">Target</span>
+                <span class="value" id="totalCashOut">0</span>
+            </div>
+            <div class="summary-card balance-total" id="cardPending">
+                <span class="label">Pending</span>
+                <span class="value" id="balanceTotal">0</span>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn-cash-in" id="cashInBtn">Add New</button>
+            <button class="btn-cash-out" id="cashOutBtn" style="background-color: var(--secondary);">Add Target</button>
+        </div>
+    </div>
+
+    <div class="zoom-overlay" id="zoomOverlay">
+        <div class="zoom-box" id="zoomCalculationBox">
+            <div class="zoom-title" id="zoomTitle">Calculation</div>
+            <div class="zoom-value" id="zoomValue">0.00</div>
+        </div>
+
+        <div class="profile-box" id="zoomProfileBox" style="display: none;">
+            <h3>User Profile</h3>
+            <div class="profile-detail-item">
+                <span class="lbl">User Name</span>
+                <div class="val" id="profName">N/A</div>
+            </div>
+            <div class="profile-detail-item">
+                <span class="lbl">Mobile Number</span>
+                <div class="val" id="profMobile">N/A</div>
+            </div>
+            <div class="profile-detail-item">
+                <span class="lbl">Password</span>
+                <div class="val">
+                    <span id="profPass">****</span>
+                    <span id="toggleProfPass" style="color: var(--blue-btn); font-size: 0.82em; cursor: pointer; font-weight: 700;">SHOW</span>
+                </div>
+            </div>
+            <button class="btn-logout" id="logoutBtn">Logout</button>
+            <button class="btn-admin-app" id="openAdminAppBtn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                Only for admin
+            </button>
+        </div>
+    </div>
+
+    <div class="overlay" id="monthOverlay"></div>
+    <div class="month-dropdown" id="monthDropdown">
+        <div class="month-dropdown-grid" id="monthGrid">
+            <div class="month-option" data-month="0">January</div>
+            <div class="month-option" data-month="1">February</div>
+            <div class="month-option" data-month="2">March</div>
+            <div class="month-option" data-month="3">April</div>
+            <div class="month-option" data-month="4">May</div>
+            <div class="month-option" data-month="5">Jun</div>
+            <div class="month-option" data-month="6">July</div>
+            <div class="month-option" data-month="7">August</div>
+            <div class="month-option" data-month="8">September</div>
+            <div class="month-option" data-month="9">October</div>
+            <div class="month-option" data-month="10">November</div>
+            <div class="month-option" data-month="11">December</div>
+        </div>
+    </div>
+
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Saved!</div>
+                <div class="close-btn" id="closeModal">&times;</div>
+            </div>
+            <div class="form-group">
+                <label for="date">Select Date</label>
+                <input type="date" id="date">
+            </div>
+            <div class="form-group">
+                <label for="description">Add Note/Batch</label>
+                <input type="text" id="description" placeholder="Enter note">
+            </div>
+            <div class="form-group">
+                <label for="amount">Add order</label>
+                <input type="number" id="amount" placeholder="0.00" step="0.01">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" id="cancelBtn">Cancel</button>
+                <button class="btn-delete" id="deleteBtn" style="display: none;">Delete</button>
+                <button class="btn-submit" id="submitBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // ===================================================
+        // ১. AUTOMATIC UPDATE SYSTEM CONFIG & LOGIC
+        // ===================================================
+        const CURRENT_VERSION = "1.0.0"; // ⚠️ আপনার বর্তমান কোডের ভার্সন কোড
+        const VERSION_CHECK_URL = "version.json"; // GitHub রিপোজিটরির রিলেটিভ পাথ
+
+        async function initAutoUpdateSystem() {
+            try {
+                // ব্রাউজার বা ওয়েবভিউ ক্যাশ বাইপাস করার জন্য টাইমস্ট্যাম্প যোগ করা হয়েছে
+                const response = await fetch(`${VERSION_CHECK_URL}?t=${new Date().getTime()}`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                
+                // সার্ভারের ভার্সন যদি লোকাল ভার্সন এর সাথে না মিলে
+                if (data && data.version && data.version !== CURRENT_VERSION) {
+                    const updateOverlay = document.getElementById('update-modal-overlay');
+                    const updateNowBtn = document.getElementById('updateNowBtn');
+                    
+                    // আপডেট মডাল পপআপ দেখাবে
+                    updateOverlay.style.display = 'flex';
+                    
+                    updateNowBtn.addEventListener('click', () => {
+                        updateOverlay.style.display = 'none';
+                        // ওল্ড ক্যাশ ক্লিয়ার করে পেজ ফোর্স রিফ্রেশ করার ট্রিক
+                        window.location.href = window.location.pathname + '?refresh=' + new Date().getTime();
+                    });
+                }
+            } catch (error) {
+                console.log("Update check unsuccessful:", error);
+            }
+        }
+
+        // ===========================
+        // FIREBASE INITIALIZATION
+        // ===========================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhDuweuma6AursdqXGrVYdNIfYa_twZKM",
+            authDomain: "notepad-pro-863fd.firebaseapp.com",
+            databaseURL: "https://notepad-pro-863fd-default-rtdb.firebaseio.com",
+            projectId: "notepad-pro-863fd",
+            storageBucket: "notepad-pro-863fd.firebasestorage.app",
+            messagingSenderId: "31128976683",
+            appId: "1:31128976683:web:1c9bf158715f7dd065996e",
+            measurementId: "G-JEZRM2Z6Q4"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // অ্যাডমিন অ্যাপ ওপেন করার বাটন
+        document.getElementById('openAdminAppBtn').addEventListener('click', function() {
+            window.open('admin.html', '_blank');
+        });
+
+        // ===========================
+        // মূল ইউজার অ্যাপ লজিক
+        // ===========================
+        document.addEventListener('DOMContentLoaded', () => {
+            // অ্যাপ লোড হওয়ার ১.৫ সেকেন্ড পর আপডেট সিস্টেম রান হবে
+            setTimeout(initAutoUpdateSystem, 1500);
+            // প্রতি ৫ মিনিট পর পর ব্যাকগ্রাউন্ডে চেক করবে নতুন আপডেট এসেছে কিনা
+            setInterval(initAutoUpdateSystem, 300000);
+
+            const authLayer = document.getElementById('authLayer');
+            const loginScreen = document.getElementById('loginScreen');
+            const registerScreen = document.getElementById('registerScreen');
+            const pendingScreen = document.getElementById('pendingScreen');
+            
+            const loginPin = document.getElementById('loginPin');
+            const loginBtn = document.getElementById('loginBtn');
+            const regName = document.getElementById('regName');
+            const regMobile = document.getElementById('regMobile');
+            const regPin = document.getElementById('regPin');
+            const regConfirmPin = document.getElementById('regConfirmPin');
+            const registerBtn = document.getElementById('registerBtn');
+            const checkStatusBtn = document.getElementById('checkStatusBtn');
+
+            const cashInBtn = document.getElementById('cashInBtn');
+            const cashOutBtn = document.getElementById('cashOutBtn');
+            const transactionModal = document.getElementById('transactionModal');
+            const closeModal = document.getElementById('closeModal');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            const deleteBtn = document.getElementById('deleteBtn');
+            const modalTitle = document.getElementById('modalTitle');
+            const amountInput = document.getElementById('amount');
+            const descriptionInput = document.getElementById('description');
+            const dateInput = document.getElementById('date');
+            const transactionTableBody = document.getElementById('transactionTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const totalCashInElement = document.getElementById('totalCashIn');
+            const totalCashOutElement = document.getElementById('totalCashOut');
+            const balanceTotalElement = document.getElementById('balanceTotal');
+            const monthOverlay = document.getElementById('monthOverlay');
+            const notification = document.getElementById('notification');
+            const dateSelector = document.getElementById('dateSelector');
+            const selectedMonth = document.getElementById('selectedMonth');
+            const monthDropdown = document.getElementById('monthDropdown');
+            const monthOptions = document.querySelectorAll('.month-option');
+            const cardTotal = document.getElementById('cardTotal');
+            const cardTarget = document.getElementById('cardTarget');
+            const cardPending = document.getElementById('cardPending');
+            
+            const zoomOverlay = document.getElementById('zoomOverlay');
+            const zoomTitle = document.getElementById('zoomTitle');
+            const zoomValue = document.getElementById('zoomValue');
+            const zoomCalculationBox = document.getElementById('zoomCalculationBox');
+            const zoomProfileBox = document.getElementById('zoomProfileBox');
+            const menuDotBtn = document.getElementById('menuDotBtn');
+            const profName = document.getElementById('profName');
+            const profMobile = document.getElementById('profMobile');
+            const profPass = document.getElementById('profPass');
+            const toggleProfPass = document.getElementById('toggleProfPass');
+            const logoutBtn = document.getElementById('logoutBtn');
+            
+            let zoomTimeoutToken = null;
+            let allRawData = [];
+            let monthData = {};
+            let editingTransactionId = null;
+            let currentMonthIndex = new Date().getMonth();
+            let loggedInUserMobile = ""; 
+
+            document.getElementById('goToRegister').addEventListener('click', () => {
+                loginScreen.style.display = 'none'; registerScreen.style.display = 'block';
+            });
+            document.getElementById('goToLogin').addEventListener('click', () => {
+                registerScreen.style.display = 'none'; loginScreen.style.display = 'block';
+            });
+
+            let localSessionUser = JSON.parse(localStorage.getItem('notepad_session_user'));
+            if(localSessionUser) {
+                loggedInUserMobile = localSessionUser.mobile;
+                if(localSessionUser.status === 'approved') {
+                    authLayer.style.display = 'none';
+                    setUserOnline(localSessionUser.mobile);
+                    listenToRealtimeFirestoreData();
+                } else if(localSessionUser.status === 'pending') {
+                    loginScreen.style.display = 'none';
+                    pendingScreen.style.display = 'block';
+                }
+            }
+
+            async function setUserOnline(mobileNumber) {
+                try {
+                    await db.collection('notebook_users').doc(mobileNumber).update({ isOnline: true });
+                } catch(e) { console.log("State setup error"); }
+            }
+
+            window.addEventListener('beforeunload', () => {
+                let session = JSON.parse(localStorage.getItem('notepad_session_user'));
+                if (session && session.mobile) {
+                    db.collection('notebook_users').doc(session.mobile).update({ isOnline: false });
+                }
+            });
+
+            registerBtn.addEventListener('click', async () => {
+                const username = regName.value.trim();
+                const mobile = regMobile.value.trim();
+                const password = regPin.value.trim();
+                const confirmPassword = regConfirmPin.value.trim();
+
+                if(!username || !mobile || password.length !== 4 || confirmPassword.length !== 4) {
+                    return showNotification('Fill out all fields correctly. PIN must be 4 digits.');
+                }
+                if(password !== confirmPassword) {
+                    return showNotification('Passwords do not match!');
+                }
+
+                registerBtn.disabled = true;
+                registerBtn.textContent = 'Processing...';
+
+                try {
+                    const pinCheck = await db.collection('notebook_users').where('password', '==', password).get();
+                    if(!pinCheck.empty) {
+                        registerBtn.disabled = false; registerBtn.textContent = 'Submit to Admin';
+                        return alert('This 4-Digit Password is already taken by another user! Please choose a different unique password.');
+                    }
+
+                    const checkDoc = await db.collection('notebook_users').doc(mobile).get();
+                    if(checkDoc.exists) {
+                        registerBtn.disabled = false; registerBtn.textContent = 'Submit to Admin';
+                        return alert('This mobile number is already registered!');
+                    }
+
+                    const newAccount = {
+                        username: username, mobile: mobile, password: password,
+                        status: 'pending', isOnline: false,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    await db.collection('notebook_users').doc(mobile).set(newAccount);
+                    localStorage.setItem('notepad_session_user', JSON.stringify(newAccount));
+                    loggedInUserMobile = mobile;
+                    
+                    registerScreen.style.display = 'none';
+                    pendingScreen.style.display = 'block';
+                } catch(err) {
+                    alert('Database Registration Failure: ' + err.message);
+                }
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Submit to Admin';
+            });
+
+            loginBtn.addEventListener('click', async () => {
+                const enteredPin = loginPin.value.trim();
+                if(enteredPin.length !== 4) return showNotification('Enter 4-digit PIN');
+
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Verifying...';
+
+                try {
+                    const snapshot = await db.collection('notebook_users').where('password', '==', enteredPin).get();
+                    
+                    if(snapshot.empty) {
+                        loginBtn.disabled = false; loginBtn.textContent = 'Login now!';
+                        return alert('Invalid PIN or account does not exist!');
+                    }
+
+                    let userData = null;
+                    snapshot.forEach(doc => { userData = doc.data(); userData.mobile = doc.id; });
+
+                    loggedInUserMobile = userData.mobile;
+
+                    if(userData.status === 'pending') {
+                        localStorage.setItem('notepad_session_user', JSON.stringify(userData));
+                        loginScreen.style.display = 'none';
+                        pendingScreen.style.display = 'block';
+                    } else if(userData.status === 'approved') {
+                        localStorage.setItem('notepad_session_user', JSON.stringify(userData));
+                        authLayer.style.display = 'none'; 
+                        await setUserOnline(userData.mobile);
+                        listenToRealtimeFirestoreData();
+                    } else {
+                        alert('Your account is blocked by Admin.');
+                    }
+                } catch (e) {
+                    alert('Database error: ' + e.message);
+                }
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login now!';
+            });
+
+            checkStatusBtn.addEventListener('click', async () => {
+                let session = JSON.parse(localStorage.getItem('notepad_session_user'));
+                if(!session) return;
+
+                checkStatusBtn.textContent = 'Synchronizing...';
+                try {
+                    const doc = await db.collection('notebook_users').doc(session.mobile).get();
+                    if(doc.exists && doc.data().status === 'approved') {
+                        let activeData = doc.data();
+                        activeData.mobile = doc.id;
+                        localStorage.setItem('notepad_session_user', JSON.stringify(activeData));
+                        loggedInUserMobile = activeData.mobile;
+                        pendingScreen.style.display = 'none';
+                        authLayer.style.display = 'none'; 
+                        await setUserOnline(activeData.mobile);
+                        listenToRealtimeFirestoreData();
+                        alert('Account successfully approved!');
+                    } else {
+                        alert('Status is still pending. Wait for Admin approval.');
+                    }
+                } catch(e) {
+                    alert('Server error. Try again.');
+                }
+                checkStatusBtn.textContent = 'Refresh Status';
+            });
+
+            function getTodayDateString() {
+                const d = new Date();
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+
+            function getCustomDateFormat(dateString) {
+                const parts = dateString.split('-');
+                if(parts.length === 3) return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0].slice(-2)}`;
+                return dateString;
+            }
+
+            dateInput.value = getTodayDateString();
+            selectedMonth.textContent = getMonthName(currentMonthIndex);
+            monthOptions[currentMonthIndex].classList.add('selected');
+
+            function initMonthData() {
+                for (let i = 0; i < 12; i++) {
+                    monthData[i] = { transactions: [], totalCashIn: 0, totalCashOut: 0, balance: 0 };
+                }
+            }
+
+            function listenToRealtimeFirestoreData() {
+                if(!loggedInUserMobile) return;
+                db.collection('notebook_transactions')
+                  .where('userId', '==', loggedInUserMobile)
+                  .onSnapshot(snapshot => {
+                    allRawData = [];
+                    snapshot.forEach(doc => {
+                        let tData = doc.data();
+                        tData.id = doc.id; 
+                        allRawData.push(tData);
+                    });
+                    renderFromRawData(allRawData);
+                }, error => {
+                    console.log("Firestore Sync Error: " + error.message);
+                    alert("Sync Error: " + error.message);
+                });
+            }
+
+            function renderFromRawData(data) {
+                initMonthData();
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        const dateObj = new Date(item.date);
+                        if(!isNaN(dateObj)) {
+                            const mIndex = dateObj.getMonth();
+                            monthData[mIndex].transactions.push({
+                                id: item.id, date: item.date,
+                                description: item.description,
+                                amount: parseFloat(item.amount) || 0,
+                                type: item.type,
+                                formattedDate: getCustomDateFormat(item.date)
+                            });
+                        }
+                    });
+                }
+
+                for (let i = 0; i < 12; i++) {
+                    monthData[i].transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    recalculateTotals(i);
+                }
+                
+                updateTransactionList(currentMonthIndex);
+                updateSummary(currentMonthIndex);
+            }
+
+            // আপনি পূর্বে সংশোধন করেছিলেন যেন ওল্ড স্পেলিং ফিল্টার করা হয়
+            function isExcluded(description) {
+                if(!description) return false;
+                const lowerDesc = String(description).toLowerCase();
+                return lowerDesc.includes("maket") || lowerDesc.includes("marekr");
+            }
+
+            function recalculateTotals(monthIndex) {
+                let totalIn = 0, totalOut = 0;
+                monthData[monthIndex].transactions.forEach(t => {
+                    if (!isExcluded(t.description)) {
+                        if (t.type === 'in') totalIn += t.amount;
+                        else totalOut += t.amount;
+                    }
+                });
+                monthData[monthIndex].totalCashIn = totalIn;
+                monthData[monthIndex].totalCashOut = totalOut;
+                monthData[monthIndex].balance = totalIn - totalOut;
+            }
+
+            cashInBtn.addEventListener('click', () => {
+                resetForm(); modalTitle.textContent = 'Add New Order';
+                transactionModal.style.display = 'flex'; transactionModal.setAttribute('data-type', 'in');
+                submitBtn.textContent = 'Save'; deleteBtn.style.display = 'none';
+            });
+
+            cashOutBtn.addEventListener('click', () => {
+                resetForm(); modalTitle.textContent = 'Add Target';
+                transactionModal.style.display = 'flex'; transactionModal.setAttribute('data-type', 'out');
+                submitBtn.textContent = 'Save'; deleteBtn.style.display = 'none';
+            });
+
+            transactionModal.addEventListener('click', (e) => { if (e.target === transactionModal) transactionModal.style.display = 'none'; });
+            closeModal.addEventListener('click', () => { transactionModal.style.display = 'none'; });
+            cancelBtn.addEventListener('click', () => { transactionModal.style.display = 'none'; });
+
+            submitBtn.addEventListener('click', async () => {
+                const amount = parseFloat(amountInput.value);
+                const description = descriptionInput.value.trim();
+                const date = dateInput.value;
+                if (!amount || amount <= 0 || !description) return showNotification('Enter a valid amount and description.');
+                if (!loggedInUserMobile) return alert("Session expired. Please log in again.");
+
+                submitBtn.disabled = true;
+                const currentType = transactionModal.getAttribute('data-type') || 'in';
+
+                if (editingTransactionId !== null) {
+                    if (confirm("Do you want to update this transaction?")) {
+                        try {
+                            await db.collection('notebook_transactions').doc(editingTransactionId).update({
+                                amount, description, date, type: currentType
+                            });
+                            showNotification("Transaction updated successfully!");
+                            transactionModal.style.display = 'none';
+                        } catch(err) { alert("Update Error: " + err.message); }
+                    }
+                } else {
+                    if (confirm("Do you want to save this transaction?")) {
+                        try {
+                            await db.collection('notebook_transactions').add({
+                                userId: loggedInUserMobile, amount, description, date, type: currentType,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            showNotification("Transaction saved securely!");
+                            transactionModal.style.display = 'none';
+                        } catch(err) { alert("Save Error: " + err.message); }
+                    }
+                }
+                submitBtn.disabled = false;
+            });
+
+            deleteBtn.addEventListener('click', async () => {
+                if (editingTransactionId !== null && confirm("Delete permanently from Firestore?")) {
+                    deleteBtn.disabled = true;
+                    try {
+                        await db.collection('notebook_transactions').doc(editingTransactionId).delete();
+                        showNotification("Transaction deleted successfully!");
+                        transactionModal.style.display = 'none';
+                    } catch(err) { alert("Delete Error: " + err.message); }
+                    deleteBtn.disabled = false;
+                }
+            });
+
+            function resetForm() {
+                amountInput.value = ''; descriptionInput.value = '';
+                dateInput.value = getTodayDateString(); editingTransactionId = null;
+            }
+
+            function editTransaction(monthIndex, transactionId) {
+                const transaction = monthData[monthIndex].transactions.find(t => t.id === transactionId);
+                if (!transaction) return;
+                editingTransactionId = transactionId;
+                dateInput.value = transaction.date; descriptionInput.value = transaction.description; amountInput.value = transaction.amount;
+                modalTitle.textContent = `Edit Transaction`; transactionModal.setAttribute('data-type', transaction.type);
+                submitBtn.textContent = 'Update'; deleteBtn.style.display = 'block'; transactionModal.style.display = 'flex';
+            }
+
+            function updateTransactionList(monthIndex) {
+                transactionTableBody.innerHTML = '';
+                const transactions = monthData[monthIndex].transactions;
+                let runningBalance = 0;
+                
+                if (transactions.length === 0) { emptyState.style.display = 'block'; return; } 
+                else { emptyState.style.display = 'none'; }
+
+                transactions.forEach(transaction => {
+                    runningBalance = 0;
+                    for (let i = transactions.length - 1; i >= 0; i--) {
+                        if (!isExcluded(transactions[i].description)) {
+                            if (transactions[i].type === 'in') runningBalance += transactions[i].amount;
+                            else runningBalance -= transactions[i].amount;
+                        }
+                        if (transactions[i] === transaction) break;
+                    }
+                    
+                    const row = document.createElement('tr');
+                    const isEx = isExcluded(transaction.description) ? "excluded-item" : "";
+                    
+                    row.innerHTML = `
+                        <td class="date-col ${isEx}">${transaction.formattedDate}</td>
+                        <td class="desc-col ${isEx}">${transaction.description}</td>
+                        <td class="amount-col ${isEx} cash-${transaction.type}">${transaction.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="balance-col">${runningBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="action-col">EDIT</td>
+                    `;
+                    row.addEventListener('click', () => { editTransaction(monthIndex, transaction.id); });
+                    transactionTableBody.appendChild(row);
+                });
+            }
+
+            function updateSummary(monthIndex) {
+                totalCashInElement.textContent = monthData[monthIndex].totalCashIn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                totalCashOutElement.textContent = monthData[monthIndex].totalCashOut.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                balanceTotalElement.textContent = monthData[monthIndex].balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+
+            function triggerBoxZoom(title, value, color) {
+                if (zoomTimeoutToken) clearTimeout(zoomTimeoutToken);
+                zoomProfileBox.style.display = 'none';
+                zoomCalculationBox.style.display = 'block';
+                zoomTitle.textContent = title; zoomValue.textContent = value; zoomValue.style.color = color;
+                zoomOverlay.classList.add('active');
+                zoomTimeoutToken = setTimeout(() => { closeBoxZoom(); }, 10000);
+            }
+
+            menuDotBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (zoomTimeoutToken) clearTimeout(zoomTimeoutToken);
+                
+                let sessionData = JSON.parse(localStorage.getItem('notepad_session_user'));
+                if (sessionData) {
+                    profName.textContent = sessionData.username || 'N/A';
+                    profMobile.textContent = sessionData.mobile || 'N/A';
+                    profPass.textContent = '****';
+                    profPass.setAttribute('data-raw', sessionData.password || '0000');
+                    toggleProfPass.textContent = 'SHOW';
+                }
+                
+                zoomCalculationBox.style.display = 'none';
+                zoomProfileBox.style.display = 'block';
+                zoomOverlay.classList.add('active');
+            });
+
+            toggleProfPass.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (toggleProfPass.textContent === 'SHOW') {
+                    profPass.textContent = profPass.getAttribute('data-raw');
+                    toggleProfPass.textContent = 'HIDE';
+                } else {
+                    profPass.textContent = '****';
+                    toggleProfPass.textContent = 'SHOW';
+                }
+            });
+
+            logoutBtn.addEventListener('click', async () => {
+                if (confirm("Are you sure you want to log out?")) {
+                    let sessionData = JSON.parse(localStorage.getItem('notepad_session_user'));
+                    if (sessionData && sessionData.mobile) {
+                        try {
+                            await db.collection('notebook_users').doc(sessionData.mobile).update({ isOnline: false });
+                        } catch(e) { console.log(e); }
+                    }
+                    localStorage.removeItem('notepad_session_user');
+                    loggedInUserMobile = "";
+                    closeBoxZoom();
+                    
+                    loginPin.value = '';
+                    regName.value = ''; regMobile.value = ''; regPin.value = ''; regConfirmPin.value = '';
+                    registerScreen.style.display = 'none';
+                    pendingScreen.style.display = 'none';
+                    loginScreen.style.display = 'block';
+                    authLayer.style.display = 'flex';
+                }
+            });
+
+            function closeBoxZoom() { zoomOverlay.classList.remove('active'); }
+            cardTotal.addEventListener('click', (e) => { e.stopPropagation(); triggerBoxZoom('Total Summary', totalCashInElement.textContent, '#10B981'); });
+            cardTarget.addEventListener('click', (e) => { e.stopPropagation(); triggerBoxZoom('Target Status', totalCashOutElement.textContent, '#EF4444'); });
+            cardPending.addEventListener('click', (e) => { e.stopPropagation(); triggerBoxZoom('Pending Order', balanceTotalElement.textContent, '#0F172A'); });
+            zoomOverlay.addEventListener('click', () => { closeBoxZoom(); });
+
+            function showNotification(message) {
+                notification.textContent = message; notification.classList.add('show');
+                setTimeout(() => notification.classList.remove('show'), 3000);
+            }
+
+            dateSelector.addEventListener('click', (e) => { e.stopPropagation(); monthDropdown.classList.add('active'); monthOverlay.style.display = 'block'; });
+            monthOverlay.addEventListener('click', () => { monthDropdown.classList.remove('active'); setTimeout(() => { monthOverlay.style.display = 'none'; }, 200); });
+
+            monthOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    const monthIndex = parseInt(option.getAttribute('data-month'));
+                    monthOptions.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    selectedMonth.textContent = getMonthName(monthIndex); currentMonthIndex = monthIndex;
+                    updateTransactionList(monthIndex); updateSummary(monthIndex);
+                    monthDropdown.classList.remove('active'); setTimeout(() => { monthOverlay.style.display = 'none'; }, 200);
+                });
+            });
+
+            function getMonthName(index) {
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                return months[index];
+            }
+
+        });
+    </script>
+</body>
+</html>

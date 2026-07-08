@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #34d399;
+            --primary-dark: #059669;
+            --primary-glow: rgba(52, 211, 153, 0.2);
+            --primary-light: rgba(52, 211, 153, 0.08);
+            --danger: #fb7185;
+            --danger-light: rgba(251, 113, 133, 0.08);
+            --warning: #fbbf24;
+            --warning-light: rgba(251, 191, 36, 0.08);
+            --info: #60a5fa;
+            --info-light: rgba(96, 165, 250, 0.08);
+            --bg-body: #050a15;
+            --bg-card: rgba(13, 21, 41, 0.65);
+            --text-dark: #e2e8f0;
+            --text-muted: #64748b;
+            --border: rgba(148, 163, 184, 0.08);
+            --border-glow: rgba(52, 211, 153, 0.15);
+            --shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+            --radius: 20px;
+            --glass-blur: blur(24px);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background: var(--bg-body);
+            color: var(--text-dark);
+            padding: 20px 10px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(ellipse 600px 600px at 15% 30%, rgba(16, 185, 129, 0.07) 0%, transparent 70%),
+                radial-gradient(ellipse 500px 500px at 85% 15%, rgba(59, 130, 246, 0.05) 0%, transparent 70%),
+                radial-gradient(ellipse 400px 400px at 50% 85%, rgba(251, 113, 133, 0.04) 0%, transparent 70%);
+            animation: orbFloat 25s ease-in-out infinite alternate;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes orbFloat {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -40px) rotate(2deg); }
+            66% { transform: translate(-20px, 20px) rotate(-1deg); }
+            100% { transform: translate(10px, -10px) rotate(1deg); }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(52, 211, 153, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(52, 211, 153, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ========== অ্যাডমিন লগইন ওভারলে ========== */
+        .admin-login-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(160deg, #020617 0%, #0a1628 30%, #071a2e 60%, #051020 100%);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .admin-login-overlay.hidden { display: none; }
+
+        .admin-login-overlay::before {
+            content: '';
+            position: absolute;
+            width: 320px; height: 320px;
+            background: radial-gradient(circle, rgba(52, 211, 153, 0.1) 0%, transparent 70%);
+            top: -100px; right: -80px;
+            border-radius: 50%;
+            animation: loginOrb1 10s ease-in-out infinite alternate;
+        }
+
+        .admin-login-overlay::after {
+            content: '';
+            position: absolute;
+            width: 220px; height: 220px;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.08) 0%, transparent 70%);
+            bottom: -60px; left: -50px;
+            border-radius: 50%;
+            animation: loginOrb2 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes loginOrb1 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-40px, 50px) scale(1.25); }
+        }
+
+        @keyframes loginOrb2 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -40px) scale(1.2); }
+        }
+
+        .admin-login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            width: 100%; max-width: 360px;
+            padding: 36px 28px;
+            border-radius: 28px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.1);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            animation: adminLoginIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes adminLoginIn {
+            from { opacity: 0; transform: scale(0.88) translateY(24px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .admin-login-icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.35);
+        }
+
+        .admin-login-icon svg {
+            width: 32px; height: 32px;
+            color: white;
+        }
+
+        .admin-login-card h2 {
+            font-size: 1.45em;
+            font-weight: 800;
+            color: #065F46;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+
+        .admin-login-card p {
+            font-size: 0.88em;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+
+        .admin-login-input {
+            width: 100%;
+            padding: 15px 18px;
+            margin-bottom: 16px;
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            font-size: 1.05em;
+            font-family: 'Outfit', sans-serif;
+            background: #f8fafc;
+            transition: all 0.25s;
+            color: var(--text-main);
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .admin-login-input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px var(--primary-glow);
+            outline: none;
+        }
+
+        .admin-login-input::placeholder {
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+        }
+
+        .admin-login-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1em;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #059669, #10b981);
+            cursor: pointer;
+            margin-top: 6px;
+            box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.4);
+            transition: all 0.25s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .admin-login-btn:hover {
+            box-shadow: 0 8px 28px -4px rgba(16, 185, 129, 0.55);
+            transform: translateY(-1px);
+        }
+
+        .admin-login-btn:active { transform: scale(0.98); }
+
+        .admin-login-error {
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            color: #dc2626;
+            font-weight: 600;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-top: 16px;
+            font-size: 0.88em;
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            display: none;
+            animation: shakeError 0.4s ease;
+        }
+
+        .admin-login-error.show { display: block; }
+
+        @keyframes shakeError {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+        }
+
+        .admin-login-attempts {
+            margin-top: 14px;
+            font-size: 0.78em;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        /* ========== মূল অ্যাডমিন কন্টেন্ট ========== */
+        .admin-container {
+            width: 100%;
+            max-width: 550px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, #022c22 0%, #064e3b 40%, #065f46 100%);
+            padding: 28px 26px;
+            border-radius: var(--radius);
+            color: white;
+            box-shadow:
+                0 0 0 1px rgba(52, 211, 153, 0.1),
+                0 20px 50px -15px rgba(4, 120, 87, 0.3),
+                inset 0 1px 0 rgba(255,255,255,0.05);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-header::before {
+            content: '';
+            position: absolute;
+            top: -50%; right: -30%;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(52, 211, 153, 0.12) 0%, transparent 70%);
+            animation: headerGlow 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes headerGlow {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+            100% { transform: translate(-40px, 30px) scale(1.3); opacity: 1; }
+        }
+
+        .admin-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.3), transparent);
+        }
+
+        .admin-header-left { position: relative; z-index: 1; }
+        .admin-header h1 {
+            font-size: 1.55em;
+            font-weight: 800;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+        .admin-header p {
+            font-size: 0.85em;
+            opacity: 0.7;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .admin-logout-btn {
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.78em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(8px);
+        }
+
+        .admin-logout-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .admin-logout-btn:active { transform: scale(0.95); }
+
+        .live-tracker-card {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: var(--radius);
+            padding: 22px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-glow);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .live-tracker-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            animation: scanLine 3s ease-in-out infinite;
+        }
+
+        @keyframes scanLine {
+            0%, 100% { opacity: 0.3; transform: scaleX(0.5); }
+            50% { opacity: 1; transform: scaleX(1); }
+        }
+
+        .tracker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tracker-title {
+            font-size: 0.82em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pulse-dot {
+            width: 8px; height: 8px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+            animation: pulse 1.6s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+        }
+
+        .online-count-badge {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 0.85em;
+            border: 1px solid rgba(52, 211, 153, 0.15);
+            letter-spacing: 0.5px;
+        }
+
+        .online-users-panel {
+            background: rgba(52, 211, 153, 0.04);
+            padding: 14px 18px;
+            border-radius: 14px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .online-users-list {
+            font-size: 0.88em;
+            color: #94a3b8;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-top: 5px;
+            padding-left: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .user-card {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: cardSlideIn 0.4s ease-out both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius);
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), transparent, transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.35s;
+        }
+
+        .user-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(52, 211, 153, 0.1);
+            border-color: rgba(52, 211, 153, 0.12);
+        }
+
+        .user-card:hover::before { opacity: 1; }
+
+        @keyframes cardSlideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .user-main-details {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .user-name {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--text-dark);
+            letter-spacing: -0.2px;
+        }
+
+        .user-phone {
+            font-size: 0.85em;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .status-pill {
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 0.7em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .status-approved {
+            background: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid rgba(52, 211, 153, 0.15);
+            box-shadow: 0 0 12px rgba(52, 211, 153, 0.08);
+        }
+
+        .status-pending {
+            background: var(--warning-light);
+            color: var(--warning);
+            border: 1px solid rgba(251, 191, 36, 0.15);
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.06);
+        }
+
+        .status-suspended {
+            background: var(--danger-light);
+            color: var(--danger);
+            border: 1px solid rgba(251, 113, 133, 0.15);
+            box-shadow: 0 0 12px rgba(251, 113, 133, 0.06);
+        }
+
+        .user-security-data {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 12px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.86em;
+            border: 1px dashed rgba(148, 163, 184, 0.1);
+        }
+
+        .password-lbl {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .password-val {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            background: rgba(148, 163, 184, 0.08);
+            padding: 4px 12px;
+            border-radius: 6px;
+            color: var(--primary);
+            letter-spacing: 3px;
+            font-size: 1.05em;
+        }
+
+        .action-container {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 75px;
+            padding: 11px 10px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.78em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .btn:active { transform: scale(0.95); }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            box-shadow: 0 4px 15px -3px rgba(16, 185, 129, 0.4);
+        }
+        .btn-approve:hover { box-shadow: 0 6px 24px -3px rgba(16, 185, 129, 0.55); transform: translateY(-1px); }
+
+        .btn-suspend {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            color: white;
+            box-shadow: 0 4px 15px -3px rgba(245, 158, 11, 0.35);
+        }
+        .btn-suspend:hover { box-shadow: 0 6px 24px -3px rgba(245, 158, 11, 0.5); transform: translateY(-1px); }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            box-shadow: 0 4px 15px -3px rgba(239, 68, 68, 0.35);
+        }
+        .btn-delete:hover { box-shadow: 0 6px 24px -3px rgba(239, 68, 68, 0.5); transform: translateY(-1px); }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            box-shadow: 0 4px 15px -3px rgba(59, 130, 246, 0.35);
+        }
+        .btn-edit:hover { box-shadow: 0 6px 24px -3px rgba(59, 130, 246, 0.5); transform: translateY(-1px); }
+
+        .no-users {
+            text-align: center;
+            padding: 44px 20px;
+            color: var(--text-muted);
+            font-weight: 500;
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            border-radius: var(--radius);
+            border: 1px dashed rgba(148, 163, 184, 0.12);
+            font-size: 0.95em;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 10, 21, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: linear-gradient(180deg, #0f172a 0%, #0c1425 100%);
+            width: 100%; max-width: 400px;
+            border-radius: var(--radius);
+            padding: 28px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(52, 211, 153, 0.1);
+            animation: modalFade 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        }
+
+        @keyframes modalFade {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-title {
+            font-size: 1.25em;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text-dark);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+            padding-bottom: 14px;
+            letter-spacing: -0.2px;
+        }
+
+        .form-group { margin-bottom: 18px; }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.82em;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 13px 16px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            font-size: 1em;
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-dark);
+            transition: all 0.25s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+            background: rgba(15, 23, 42, 0.8);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+        }
+
+        .form-group input::placeholder { color: rgba(148, 163, 184, 0.4); }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 26px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.92em;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .modal-actions button:active { transform: scale(0.97); }
+
+        .btn-modal-cancel {
+            background: rgba(148, 163, 184, 0.08);
+            color: var(--text-muted);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .btn-modal-cancel:hover { background: rgba(148, 163, 184, 0.12); color: var(--text-dark); }
+
+        .btn-modal-save {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            box-shadow: 0 4px 15px -3px rgba(16, 185, 129, 0.4);
+        }
+        .btn-modal-save:hover { box-shadow: 0 6px 24px -3px rgba(16, 185, 129, 0.55); transform: translateY(-1px); }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(52, 211, 153, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(52, 211, 153, 0.35); }
+        ::selection { background: rgba(52, 211, 153, 0.3); color: white; }
+    </style>
+</head>
+<body>
+
+    <!-- ========== অ্যাডমিন লগইন ওভারলে ========== -->
+    <div class="admin-login-overlay" id="adminLoginOverlay">
+        <div class="admin-login-card">
+            <div class="admin-login-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+            <h2>Admin Access Only</h2>
+            <p>Enter the secret admin password to unlock the control center</p>
+            <input type="password" id="adminPasswordInput" class="admin-login-input" placeholder="Enter Admin Password" autocomplete="off">
+            <button id="adminLoginBtn" class="admin-login-btn">Login now!</button>
+            <div class="admin-login-error" id="adminLoginError">Access Denied! Incorrect password.</div>
+            <div class="admin-login-attempts" id="adminAttemptsText">Attempts remaining: 5</div>
+        </div>
+    </div>
+
+    <!-- ========== মূল অ্যাডমিন কন্টেন্ট ========== -->
+    <div class="admin-container" id="adminMainContent">
+        <div class="admin-header">
+            <div class="admin-header-left">
+                <h1>Admin app</h1>
+                <p></p>
+            </div>
+            <button class="admin-logout-btn" id="adminLogoutBtn">Logout</button>
+        </div>
+
+        <div class="live-tracker-card">
+            <div class="tracker-header">
+                <span class="tracker-title"><span class="pulse-dot"></span>Live Stream Activity</span>
+                <span class="online-count-badge" id="onlineCountText">0 Active</span>
+            </div>
+            <div class="online-users-panel">
+                <div class="online-users-list" id="onlineNamesList">Scanning for active terminal links...</div>
+            </div>
+        </div>
+
+        <div class="section-title">Terminal Access Registries</div>
+        <div class="user-list" id="userListContainer">
+            <div class="no-users">Syncing secure connection to nodes...</div>
+        </div>
+    </div>
+
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-title">Modify Terminal Node</div>
+            <input type="hidden" id="editTargetId">
+            <div class="form-group">
+                <label>User Account Name</label>
+                <input type="text" id="editNameField" placeholder="Enter name">
+            </div>
+            <div class="form-group">
+                <label>Mobile Communications Address (ID)</label>
+                <input type="tel" id="editMobileField" readonly style="background: rgba(15, 23, 42, 0.4); color: var(--text-muted); cursor: not-allowed; opacity: 0.6;">
+            </div>
+            <div class="form-group">
+                <label>4-Digit Protection Cryptic Password</label>
+                <input type="text" id="editPasswordField" placeholder="4-Digit Password" maxlength="4">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="closeModalBtn">Dismiss</button>
+                <button class="btn-modal-save" id="saveModalBtn">Save Nodes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================
+        // হার্ডকোডেড অ্যাডমিন পাসওয়ার্ড
+        // Firebase এর সাথে সম্পর্কিত নয়
+        // ===========================
+        const ADMIN_SECRET_PASSWORD = "mijanur25";
+        let adminLoginAttempts = 5;
+
+        const adminLoginOverlay = document.getElementById('adminLoginOverlay');
+        const adminPasswordInput = document.getElementById('adminPasswordInput');
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminLoginError = document.getElementById('adminLoginError');
+        const adminAttemptsText = document.getElementById('adminAttemptsText');
+        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+
+        // সেশন চেক - আগে লগইন করে থাকলে আবার দেখাবে না
+        if (sessionStorage.getItem('admin_authenticated') === 'true') {
+            adminLoginOverlay.classList.add('hidden');
+        }
+
+        adminLoginBtn.addEventListener('click', handleAdminLogin);
+        adminPasswordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleAdminLogin();
+        });
+
+        function handleAdminLogin() {
+            const enteredPassword = adminPasswordInput.value.trim();
+
+            if (enteredPassword === ADMIN_SECRET_PASSWORD) {
+                sessionStorage.setItem('admin_authenticated', 'true');
+                adminLoginOverlay.classList.add('hidden');
+                adminPasswordInput.value = '';
+                adminLoginError.classList.remove('show');
+            } else {
+                adminLoginAttempts--;
+                adminLoginError.classList.add('show');
+                adminAttemptsText.textContent = `Attempts remaining: ${adminLoginAttempts}`;
+                adminPasswordInput.value = '';
+                adminPasswordInput.focus();
+
+                if (adminLoginAttempts <= 0) {
+                    adminLoginBtn.disabled = true;
+                    adminLoginBtn.textContent = 'Locked Out';
+                    adminLoginBtn.style.background = '#374151';
+                    adminLoginBtn.style.boxShadow = 'none';
+                    adminPasswordInput.disabled = true;
+                    adminAttemptsText.textContent = 'Maximum attempts reached. Reload page.';
+                    adminLoginError.textContent = 'Access permanently denied. Refresh the page to try again.';
+                }
+            }
+        }
+
+        // লগআউট বাটন - অ্যাডমিন লগইন লক করে দেয়
+        adminLogoutBtn.addEventListener('click', () => {
+            if (confirm('Lock the admin workspace?')) {
+                sessionStorage.removeItem('admin_authenticated');
+                adminLoginOverlay.classList.remove('hidden');
+                adminPasswordInput.value = '';
+                adminLoginError.classList.remove('show');
+                adminPasswordInput.focus();
+            }
+        });
+
+        // ===========================
+        // FIREBASE INITIALIZATION
+        // ===========================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhDuweuma6AursdqXGrVYdNIfYa_twZKM",
+            authDomain: "notepad-pro-863fd.firebaseapp.com",
+            databaseURL: "https://notepad-pro-863fd-default-rtdb.firebaseio.com",
+            projectId: "notepad-pro-863fd",
+            storageBucket: "notepad-pro-863fd.firebasestorage.app",
+            messagingSenderId: "31128976683",
+            appId: "1:31128976683:web:1c9bf158715f7dd065996e",
+            measurementId: "G-JEZRM2Z6Q4"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const userListContainer = document.getElementById('userListContainer');
+        const onlineCountText = document.getElementById('onlineCountText');
+        const onlineNamesList = document.getElementById('onlineNamesList');
+
+        const editModal = document.getElementById('editModal');
+        const editTargetId = document.getElementById('editTargetId');
+        const editNameField = document.getElementById('editNameField');
+        const editMobileField = document.getElementById('editMobileField');
+        const editPasswordField = document.getElementById('editPasswordField');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const saveModalBtn = document.getElementById('saveModalBtn');
+
+        db.collection('notebook_users').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+            userListContainer.innerHTML = '';
+            
+            if(snapshot.empty) {
+                userListContainer.innerHTML = '<div class="no-users">No user accounts found in the system registry.</div>';
+                onlineCountText.textContent = "0 Active";
+                onlineNamesList.textContent = 'No terminal connections online.';
+                return;
+            }
+
+            let currentOnlineCount = 0;
+            let currentOnlineNames = [];
+
+            snapshot.forEach(doc => {
+                const user = doc.data();
+                user.mobile = doc.id; 
+
+                if(user.isOnline === true && user.status === 'approved') {
+                    currentOnlineCount++;
+                    currentOnlineNames.push(user.username || 'Unknown Node');
+                }
+
+                let statusClass = 'status-pending';
+                if(user.status === 'approved') statusClass = 'status-approved';
+                if(user.status === 'suspended') statusClass = 'status-suspended';
+
+                let controlActionSuite = '';
+                if(user.status === 'pending' || user.status === 'suspended') {
+                    controlActionSuite += `<button class="btn btn-approve" onclick="changeUserStatus('${user.mobile}', 'approved')">Approve</button>`;
+                }
+                if(user.status === 'approved') {
+                    controlActionSuite += `<button class="btn btn-suspend" onclick="changeUserStatus('${user.mobile}', 'suspended')">Suspend</button>`;
+                }
+                
+                controlActionSuite += `
+                    <button class="btn btn-edit" onclick="launchEditModal('${user.mobile}', '${user.username}', '${user.password}')">Edit</button>
+                    <button class="btn btn-delete" onclick="purgeUserRequest('${user.mobile}')">Delete</button>
+                `;
+
+                const card = document.createElement('div');
+                card.className = 'user-card';
+                card.innerHTML = `
+                    <div class="user-info-row">
+                        <div class="user-main-details">
+                            <span class="user-name">${user.username || 'System User'}</span>
+                            <span class="user-phone">ID/Mobile: ${user.mobile}</span>
+                        </div>
+                        <span class="status-pill ${statusClass}">${user.status || 'pending'}</span>
+                    </div>
+                    <div class="user-security-data">
+                        <span class="password-lbl">4-Digit Security PIN:</span>
+                        <span class="password-val">${user.password || 'N/A'}</span>
+                    </div>
+                    <div class="action-container">
+                        ${controlActionSuite}
+                    </div>
+                `;
+                userListContainer.appendChild(card);
+            });
+
+            onlineCountText.textContent = `${currentOnlineCount} Active`;
+            if(currentOnlineNames.length > 0) {
+                onlineNamesList.textContent = "Online Terminal Nodes: " + currentOnlineNames.join(', ');
+            } else {
+                onlineNamesList.textContent = 'No terminal connections online currently.';
+            }
+
+        }, error => {
+            userListContainer.innerHTML = `<div class="no-users" style="color:var(--danger);">Firestore access streaming error: ${error.message}</div>`;
+        });
+
+        async function changeUserStatus(targetId, targetStatus) {
+            if(confirm(`Do you wish to change user status directly to [${targetStatus}]?`)) {
+                try {
+                    await db.collection('notebook_users').doc(targetId).update({ status: targetStatus });
+                } catch(err) {
+                    alert("Write operation failed: " + err.message);
+                }
+            }
+        }
+
+        function launchEditModal(id, name, pass) {
+            editTargetId.value = id;
+            editNameField.value = name;
+            editMobileField.value = id;
+            editPasswordField.value = pass;
+            editModal.style.display = 'flex';
+        }
+
+        closeModalBtn.addEventListener('click', () => { editModal.style.display = 'none'; });
+        window.addEventListener('click', (e) => { if (e.target === editModal) editModal.style.display = 'none'; });
+
+        saveModalBtn.addEventListener('click', async () => {
+            const targetId = editTargetId.value;
+            const updatedName = editNameField.value.trim();
+            const updatedPass = editPasswordField.value.trim();
+
+            if(!updatedName || updatedPass.length !== 4) {
+                alert("Please verify inputs! Name cannot be blank, and Password must be exactly 4-digits.");
+                return;
+            }
+
+            saveModalBtn.disabled = true;
+            saveModalBtn.textContent = "Updating...";
+
+            try {
+                const pinCheck = await db.collection('notebook_users').where('password', '==', updatedPass).get();
+                let isDuplicate = false;
+                pinCheck.forEach(doc => {
+                    if(doc.id !== targetId) {
+                        isDuplicate = true;
+                    }
+                });
+
+                if(isDuplicate) {
+                    saveModalBtn.disabled = false;
+                    saveModalBtn.textContent = "Save Nodes";
+                    return alert("This 4-digit password is already used by another user. Choose a unique one.");
+                }
+
+                await db.collection('notebook_users').doc(targetId).update({
+                    username: updatedName,
+                    password: updatedPass
+                });
+                editModal.style.display = 'none';
+            } catch(err) {
+                alert("Node modification error caught: " + err.message);
+            }
+            saveModalBtn.disabled = false;
+            saveModalBtn.textContent = "Save Nodes";
+        });
+
+        async function purgeUserRequest(targetId) {
+            if(confirm("Confirm deletion execution plan? User will be forced back to signup view.")) {
+                try {
+                    await db.collection('notebook_users').doc(targetId).delete();
+                } catch(err) {
+                    alert("Destruction failure: " + err.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
